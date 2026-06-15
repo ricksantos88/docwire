@@ -1,4 +1,4 @@
-package swaggor
+package docwire
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ func DefaultSwaggerUIHTML(specPath string) string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Swaggor — API Docs</title>
+    <title>docwire — API Docs</title>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.css" />
     <style>
         /* ── reset & base ── */
@@ -24,7 +24,7 @@ func DefaultSwaggerUIHTML(specPath string) string {
         }
 
         /* ── topbar ── */
-        #swaggor-topbar {
+        #docwire-topbar {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -36,7 +36,7 @@ func DefaultSwaggerUIHTML(specPath string) string {
             top: 0;
             z-index: 100;
         }
-        #swaggor-topbar .logo-mark {
+        #docwire-topbar .logo-mark {
             width: 32px;
             height: 32px;
             background: linear-gradient(135deg, #39d353 0%%, #00b4d8 100%%);
@@ -50,7 +50,7 @@ func DefaultSwaggerUIHTML(specPath string) string {
             letter-spacing: -1px;
             flex-shrink: 0;
         }
-        #swaggor-topbar .brand {
+        #docwire-topbar .brand {
             font-size: 18px;
             font-weight: 700;
             letter-spacing: -0.5px;
@@ -58,7 +58,7 @@ func DefaultSwaggerUIHTML(specPath string) string {
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        #swaggor-topbar .badge {
+        #docwire-topbar .badge {
             margin-left: auto;
             font-size: 11px;
             color: #8b949e;
@@ -207,9 +207,9 @@ func DefaultSwaggerUIHTML(specPath string) string {
 </head>
 <body>
 
-    <div id="swaggor-topbar">
-        <div class="logo-mark">sw</div>
-        <span class="brand">swaggor</span>
+    <div id="docwire-topbar">
+        <div class="logo-mark">dw</div>
+        <span class="brand">docwire</span>
         <span class="badge">API Docs</span>
     </div>
 

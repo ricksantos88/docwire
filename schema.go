@@ -1,4 +1,4 @@
-package swaggor
+package docwire
 
 import (
 	"reflect"

@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"testing"
 
-	swaggor "github.com/ricksantos88/swaggor"
-	"github.com/ricksantos88/swaggor/adapters"
-	"github.com/ricksantos88/swaggor/parser"
+	docwire "github.com/ricksantos88/docwire"
+	"github.com/ricksantos88/docwire/adapters"
+	"github.com/ricksantos88/docwire/parser"
 )
 
-func newEngine() *swaggor.Engine {
-	return swaggor.NewEngine("Test", "v1")
+func newEngine() *docwire.Engine {
+	return docwire.NewEngine("Test", "v1")
 }
 
 func dummyRoute(funcName, method, path string) parser.RouteAnnotation {
@@ -124,7 +124,9 @@ func testResolver(typeName string) any {
 	case "UserResponse":
 		return userModel{}
 	case "ErrorResponse":
-		return struct{ Message string `json:"message"` }{}
+		return struct {
+			Message string `json:"message"`
+		}{}
 	}
 	return nil
 }

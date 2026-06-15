@@ -4,19 +4,19 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/ricksantos88/swaggor"
-	"github.com/ricksantos88/swaggor/adapters"
-	"github.com/ricksantos88/swaggor/example/handlers"
-	"github.com/ricksantos88/swaggor/parser"
+	"github.com/ricksantos88/docwire"
+	"github.com/ricksantos88/docwire/adapters"
+	"github.com/ricksantos88/docwire/example/handlers"
+	"github.com/ricksantos88/docwire/parser"
 )
 
 func main() {
-	engine := swaggor.NewEngine("Financial Customer Core API", "v3.1.2",
-		swaggor.WithDescription("Manages customer accounts, tiers, and profile settings."),
-		swaggor.WithContact("Core API Team", "api@example.com", "https://example.com"),
-		swaggor.WithLicense("MIT", "https://opensource.org/licenses/MIT"),
-		swaggor.WithServer("http://localhost:8080", "Local Development"),
-		swaggor.WithSecurityScheme("bearer", swaggor.BearerJWT()),
+	engine := docwire.NewEngine("Financial Customer Core API", "v3.1.2",
+		docwire.WithDescription("Manages customer accounts, tiers, and profile settings."),
+		docwire.WithContact("Core API Team", "api@example.com", "https://example.com"),
+		docwire.WithLicense("MIT", "https://opensource.org/licenses/MIT"),
+		docwire.WithServer("http://localhost:8080", "Local Development"),
+		docwire.WithSecurityScheme("bearer", docwire.BearerJWT()),
 	)
 
 	routes, err := parser.ParseDir("./example/handlers")
@@ -32,10 +32,10 @@ func main() {
 		},
 	)
 
-	mux.Handle("/swaggor/", engine.Handler())
+	mux.Handle("/docwire/", engine.Handler())
 
 	log.Println("API:        http://localhost:8080/api/v1/customers")
-	log.Println("Swagger UI: http://localhost:8080/swaggor/")
+	log.Println("Swagger UI: http://localhost:8080/docwire/")
 
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)

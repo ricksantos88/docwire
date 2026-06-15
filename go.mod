@@ -1,4 +1,4 @@
-module github.com/ricksantos88/swaggor
+module github.com/ricksantos88/docwire
 
 go 1.25.0
 

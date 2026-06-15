@@ -2,7 +2,7 @@
 //
 // Each function carries annotation tags in its doc-comment. Those tags are
 // consumed at startup by the loader in each main.go to register routes with
-// both the swaggor documentation engine and the target HTTP framework.
+// both the docwire documentation engine and the target HTTP framework.
 //
 // Annotation reference:
 //

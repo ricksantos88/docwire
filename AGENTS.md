@@ -1,15 +1,19 @@
-# AGENTS.md — swaggor
+# AGENTS.md — docwire
 
 Guidelines for AI agents (Claude Code, Copilot, etc.) working in this repository.
 
 ## Project overview
 
-`swaggor` is a minimal Swagger documentation middleware for Go. It has two source files:
+`docwire` is a minimal OpenAPI 3.0 documentation middleware for Go. The core is split
+across focused source files in the root package:
 
-- [swagger.go](swagger.go) — core engine: spec types, reflection-based model registration, route binding, `net/http` handler
-- [ui.go](ui.go) — generates the Swagger UI HTML page (CDN-backed, no embedded assets)
+- [engine.go](engine.go) — engine state, route registration, `net/http` handler
+- [spec.go](spec.go) / [schema.go](schema.go) — OpenAPI spec types and reflection-based model registration
+- [options.go](options.go) — functional options (servers, security, params, responses)
+- [ui.go](ui.go) — generates the docs HTML page, rendered with Swagger UI (CDN-backed, no embedded assets)
 
-There are no generated files, no build scripts, and no test files yet. The module path is `github.com/ricksantos88/swaggor`.
+The generated document is a standard OpenAPI 3.0 spec; Swagger UI is used only as the
+viewer. The module path is `github.com/ricksantos88/docwire`.
 
 ## Scope rules
 
@@ -34,27 +38,27 @@ Currently only `GET` and `POST` are supported in `AddRoute`. To add more methods
 
 ## Adding tests
 
-Tests should use the standard `testing` package — no test framework. Test files go in the root package (`package swaggor`). The main things worth testing:
+Tests should use the standard `testing` package — no test framework. Test files go in the root package (`package docwire`). The main things worth testing:
 
 - `RegisterModel` — correct schema generation from struct reflection
 - `AddRoute` — correct `PathItem` and `Operation` population
-- `Handler` — HTTP responses for `/swaggor/` and `/swaggor/doc.json`
+- `Handler` — HTTP responses for `/docwire/` and `/docwire/doc.json`
 - Concurrency — call `AddRoute` from multiple goroutines to validate mutex safety
 
 ## Endpoints served
 
 | Path | Handler |
 |---|---|
-| `GET /swaggor/` | HTML — Swagger UI via CDN |
-| `GET /swaggor/doc.json` | JSON — Swagger spec |
+| `GET /docwire/` | HTML — Swagger UI via CDN |
+| `GET /docwire/doc.json` | JSON — OpenAPI 3.0 spec |
 
-Any path under `/swaggor/` that is not exactly `/swaggor` returns 404.
+Any path under `/docwire/` that is not exactly `/docwire` returns 404.
 
 ## Running examples
 
 ```bash
-go run ./example/nethttp   # http://localhost:8080/swaggor/
-go run ./example/fiber     # http://localhost:3000/swaggor/
+go run ./example/nethttp   # http://localhost:8080/docwire/
+go run ./example/fiber     # http://localhost:3000/docwire/
 ```
 
 ## What agents should NOT do
@@ -62,4 +66,4 @@ go run ./example/fiber     # http://localhost:3000/swaggor/
 - Do not refactor the reflection logic in `RegisterModel` without running the examples end-to-end.
 - Do not replace the CDN Swagger UI with embedded assets unless the user explicitly asks — it would add binary weight to the module.
 - Do not add logging to the core package.
-- Do not change the mount prefix `/swaggor` without updating both the handler and the examples.
+- Do not change the mount prefix `/docwire` without updating both the handler and the examples.

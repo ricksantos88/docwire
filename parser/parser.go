@@ -49,7 +49,7 @@ type ValidationError struct {
 }
 
 func (e ValidationError) Error() string {
-	return fmt.Sprintf("swaggor/parser: func %q → %s: %s", e.FuncName, e.Tag, e.Message)
+	return fmt.Sprintf("docwire/parser: func %q → %s: %s", e.FuncName, e.Tag, e.Message)
 }
 
 // Param describes a single HTTP parameter (query or path).

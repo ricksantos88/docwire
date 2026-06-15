@@ -1,4 +1,4 @@
-package swaggor
+package docwire
 
 import (
 	"encoding/json"
@@ -623,7 +623,7 @@ func TestAddRoute_AutoRegistersResponseModel(t *testing.T) {
 
 func TestHandler_DocJSON_StatusAndContentType(t *testing.T) {
 	e := NewEngine("Test", "v1")
-	req := httptest.NewRequest(http.MethodGet, "/swaggor/doc.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire/doc.json", nil)
 	rr := httptest.NewRecorder()
 	e.Handler().ServeHTTP(rr, req)
 
@@ -641,7 +641,7 @@ func TestHandler_DocJSON_ValidSpec(t *testing.T) {
 	e.AddRoute("/users", "GET", "List", "All users",
 		WithResponse(200, "OK", SimpleStruct{}),
 	)
-	req := httptest.NewRequest(http.MethodGet, "/swaggor/doc.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire/doc.json", nil)
 	rr := httptest.NewRecorder()
 	e.Handler().ServeHTTP(rr, req)
 
@@ -659,7 +659,7 @@ func TestHandler_DocJSON_ValidSpec(t *testing.T) {
 
 func TestHandler_UIPage_StatusAndContentType(t *testing.T) {
 	e := NewEngine("Test", "v1")
-	req := httptest.NewRequest(http.MethodGet, "/swaggor/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire/", nil)
 	rr := httptest.NewRecorder()
 	e.Handler().ServeHTTP(rr, req)
 
@@ -677,7 +677,7 @@ func TestHandler_UIPage_StatusAndContentType(t *testing.T) {
 
 func TestHandler_UIPage_WithoutTrailingSlash(t *testing.T) {
 	e := NewEngine("Test", "v1")
-	req := httptest.NewRequest(http.MethodGet, "/swaggor", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire", nil)
 	rr := httptest.NewRecorder()
 	// ServeMux faz 301 antes do nosso handler ver; via adaptor (fiber etc) chega direto
 	e.Handler().ServeHTTP(rr, req)
@@ -688,7 +688,7 @@ func TestHandler_UIPage_WithoutTrailingSlash(t *testing.T) {
 
 func TestHandler_UnknownPath_NotFound(t *testing.T) {
 	e := NewEngine("Test", "v1")
-	req := httptest.NewRequest(http.MethodGet, "/swaggor/unknown-page", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire/unknown-page", nil)
 	rr := httptest.NewRecorder()
 	e.Handler().ServeHTTP(rr, req)
 	if rr.Code != http.StatusNotFound {
@@ -814,7 +814,7 @@ func TestHandler_ConcurrentRead(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			defer wg.Done()
-			req := httptest.NewRequest(http.MethodGet, "/swaggor/doc.json", nil)
+			req := httptest.NewRequest(http.MethodGet, "/docwire/doc.json", nil)
 			rr := httptest.NewRecorder()
 			h.ServeHTTP(rr, req)
 			if rr.Code != http.StatusOK {
@@ -886,7 +886,7 @@ func TestFullSpec_RoundTrip(t *testing.T) {
 	)
 
 	// serializa e deserializa pra garantir que o JSON não quebra nada
-	req := httptest.NewRequest(http.MethodGet, "/swaggor/doc.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/docwire/doc.json", nil)
 	rr := httptest.NewRecorder()
 	e.Handler().ServeHTTP(rr, req)
 

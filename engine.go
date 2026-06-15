@@ -1,4 +1,4 @@
-package swaggor
+package docwire
 
 import (
 	"encoding/json"
@@ -189,25 +189,25 @@ func (e *Engine) RegisterModel(model any) string {
 
 // Handler returns an http.Handler that serves the UI and the spec JSON.
 //
-//	GET /swaggor/         → Swagger UI (HTML)
-//	GET /swaggor/doc.json → OpenAPI 3.0 spec
+//	GET /docwire/         → Swagger UI (HTML)
+//	GET /docwire/doc.json → OpenAPI 3.0 spec
 func (e *Engine) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/swaggor/doc.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/docwire/doc.json", func(w http.ResponseWriter, r *http.Request) {
 		e.mu.RLock()
 		defer e.mu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(e.spec)
 	})
 
-	mux.HandleFunc("/swaggor/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.TrimSuffix(r.URL.Path, "/") != "/swaggor" {
+	mux.HandleFunc("/docwire/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.TrimSuffix(r.URL.Path, "/") != "/docwire" {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(DefaultSwaggerUIHTML("/swaggor/doc.json")))
+		_, _ = w.Write([]byte(DefaultSwaggerUIHTML("/docwire/doc.json")))
 	})
 
 	return mux

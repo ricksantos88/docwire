@@ -8,7 +8,7 @@ import (
 
 func TestValidationError_Format(t *testing.T) {
 	e := ValidationError{FuncName: "GetUser", Tag: "@Route", Message: "malformed"}
-	want := `swaggor/parser: func "GetUser" → @Route: malformed`
+	want := `docwire/parser: func "GetUser" → @Route: malformed`
 	if e.Error() != want {
 		t.Errorf("want %q, got %q", want, e.Error())
 	}

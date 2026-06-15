@@ -1,4 +1,4 @@
-# swaggor
+# docwire
 
 Lightweight OpenAPI 3.0 documentation middleware for Go. Zero external dependencies for the core — works with any `net/http`-compatible router and adapts to frameworks like Fiber via their `net/http` adaptor.
 
@@ -6,7 +6,7 @@ Lightweight OpenAPI 3.0 documentation middleware for Go. Zero external dependenc
 
 - **Declarative annotation system** — document routes directly in handler doc-comments; no separate registration blocks
 - Generates an OpenAPI 3.0 spec from Go structs via reflection
-- Serves Swagger UI at `/swaggor/` and the raw JSON spec at `/swaggor/doc.json`
+- Serves Swagger UI at `/docwire/` and the raw JSON spec at `/docwire/doc.json`
 - Generic, framework-agnostic adapter (`adapters.Load`) — works with `net/http`, Fiber, or any router
 - Thread-safe spec building with `sync.RWMutex`
 - Supports all HTTP methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
@@ -25,7 +25,7 @@ Lightweight OpenAPI 3.0 documentation middleware for Go. Zero external dependenc
 ## Installation
 
 ```bash
-go get github.com/ricksantos88/swaggor
+go get github.com/ricksantos88/docwire
 ```
 
 ## Quick Start — Declarative (recommended)
@@ -91,16 +91,16 @@ import (
     "net/http"
     "log"
 
-    "github.com/ricksantos88/swaggor"
-    "github.com/ricksantos88/swaggor/adapters"
-    "github.com/ricksantos88/swaggor/parser"
+    "github.com/ricksantos88/docwire"
+    "github.com/ricksantos88/docwire/adapters"
+    "github.com/ricksantos88/docwire/parser"
     "mymodule/handlers"
 )
 
 func main() {
-    engine := swaggor.NewEngine("My API", "v1.0.0",
-        swaggor.WithServer("http://localhost:8080", "Local"),
-        swaggor.WithSecurityScheme("bearer", swaggor.BearerJWT()),
+    engine := docwire.NewEngine("My API", "v1.0.0",
+        docwire.WithServer("http://localhost:8080", "Local"),
+        docwire.WithSecurityScheme("bearer", docwire.BearerJWT()),
     )
 
     routes, err := parser.ParseDir("./handlers")
@@ -116,7 +116,7 @@ func main() {
         },
     )
 
-    mux.Handle("/swaggor/", engine.Handler())
+    mux.Handle("/docwire/", engine.Handler())
     log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
@@ -133,8 +133,8 @@ func responseResolver(typeName string) any {
 }
 ```
 
-Swagger UI → `http://localhost:8080/swaggor/`
-Raw spec   → `http://localhost:8080/swaggor/doc.json`
+Swagger UI → `http://localhost:8080/docwire/`
+Raw spec   → `http://localhost:8080/docwire/doc.json`
 
 ### Fiber
 
@@ -153,7 +153,7 @@ adapters.Load(engine, routes, handlers.FiberRegistry, responseResolver,
 )
 
 // Mount Swagger UI (Fiber uses fasthttp internally)
-app.All("/swaggor/*", adaptor.HTTPHandler(engine.Handler()))
+app.All("/docwire/*", adaptor.HTTPHandler(engine.Handler()))
 ```
 
 See [example/nethttp/main.go](example/nethttp/main.go) and [example/fiber/main.go](example/fiber/main.go) for full runnable examples.
@@ -166,22 +166,22 @@ If you prefer to register routes in code instead of doc-comments, you can call `
 
 ```go
 engine.AddRoute("/api/users", "GET", "List Users", "Returns all users",
-    swaggor.WithTags("Users"),
-    swaggor.WithQueryParam("page", "Page number", false),
-    swaggor.WithResponse(200, "OK", []UserResponse{}),
-    swaggor.WithResponse(401, "Unauthorized", ErrorResponse{}),
-    swaggor.WithSecurity("bearer"),
+    docwire.WithTags("Users"),
+    docwire.WithQueryParam("page", "Page number", false),
+    docwire.WithResponse(200, "OK", []UserResponse{}),
+    docwire.WithResponse(401, "Unauthorized", ErrorResponse{}),
+    docwire.WithSecurity("bearer"),
 )
 
 engine.AddRoute("/api/users/{id}", "POST", "Create User", "Creates a user",
-    swaggor.WithTags("Users"),
-    swaggor.WithRequestBody("User data", true, CreateUserRequest{}),
-    swaggor.WithResponse(201, "Created", UserResponse{}),
-    swaggor.WithSecurity("bearer"),
+    docwire.WithTags("Users"),
+    docwire.WithRequestBody("User data", true, CreateUserRequest{}),
+    docwire.WithResponse(201, "Created", UserResponse{}),
+    docwire.WithSecurity("bearer"),
 )
 
 mux := http.NewServeMux()
-mux.Handle("/swaggor/", engine.Handler())
+mux.Handle("/docwire/", engine.Handler())
 http.ListenAndServe(":8080", mux)
 ```
 
@@ -230,7 +230,7 @@ Generic, framework-agnostic loader:
 
 ```go
 func Load[H any](
-    engine    *swaggor.Engine,
+    engine    *docwire.Engine,
     routes    []parser.RouteAnnotation,
     registry  map[string]H,
     resolver  BodyResolver,
@@ -248,8 +248,8 @@ Returns an `http.Handler` that serves:
 
 | Path | Content |
 |---|---|
-| `GET /swaggor/` | Swagger UI (HTML) |
-| `GET /swaggor/doc.json` | OpenAPI 3.0 spec (JSON) |
+| `GET /docwire/` | Swagger UI (HTML) |
+| `GET /docwire/doc.json` | OpenAPI 3.0 spec (JSON) |
 
 ### Security scheme helpers
 
@@ -296,6 +296,16 @@ go run ./example/nethttp
 # Fiber example
 go run ./example/fiber
 ```
+
+## Acknowledgements
+
+`docwire` is built on top of the [OpenAPI Specification](https://www.openapis.org/) — the
+output is a standard **OpenAPI 3.0** document, used here as both the reference and the
+inspiration for the whole project. The interactive docs page is rendered with
+[Swagger UI](https://github.com/swagger-api/swagger-ui), loaded from a CDN.
+
+These are open standards/tools `docwire` interoperates with — they are not bundled
+dependencies of the core library.
 
 ## License
 

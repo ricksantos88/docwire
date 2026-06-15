@@ -1,4 +1,4 @@
-package swaggor
+package docwire
 
 // Contact holds API contact information.
 type Contact struct {
@@ -126,7 +126,7 @@ type OAuthFlow struct {
 
 // Components aggregates reusable schemas and security schemes.
 type Components struct {
-	Schemas         map[string]Schema        `json:"schemas"`
+	Schemas         map[string]Schema         `json:"schemas"`
 	SecuritySchemes map[string]SecurityScheme `json:"securitySchemes,omitempty"`
 }
 

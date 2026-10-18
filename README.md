@@ -4,6 +4,7 @@ Lightweight OpenAPI 3.0 documentation middleware for Go. Zero external dependenc
 
 ## Features
 
+- **Zero-config source scan** — `docwire.Scan(dirs...)` builds the whole spec from your source at startup: no registry, no resolver maps, no codegen, no extra commands
 - **Declarative annotation system** — document routes directly in handler doc-comments; no separate registration blocks
 - Generates an OpenAPI 3.0 spec from Go structs via reflection
 - Serves Swagger UI at `/docwire/` and the raw JSON spec at `/docwire/doc.json`
@@ -28,7 +29,66 @@ Lightweight OpenAPI 3.0 documentation middleware for Go. Zero external dependenc
 go get github.com/ricksantos88/docwire
 ```
 
-## Quick Start — Declarative (recommended)
+## Quick Start — Zero-config Scan (recommended)
+
+The fastest path: annotate your handlers, declare the API metadata once in a
+package doc-comment, then call `docwire.Scan` with the directories that hold your
+handlers. Scan reads the source at startup — both the handler annotations **and**
+the referenced DTO structs — and resolves every `@Response`/`@Body` type by
+reading its declaration. No registry, no resolver `switch`, no code generation,
+no build step beyond `go run`.
+
+### 1. Declare global metadata once (package doc-comment)
+
+```go
+// cmd/api/main.go
+//
+// @Title       My API
+// @Version     v1.0.0
+// @Description Customer-facing REST API.
+// @Server      http://localhost:8080  "Local"
+// @Security    bearer  bearerJWT
+package main
+```
+
+### 2. Annotate your handlers (see the annotation reference below)
+
+The `@Body` request DTO is inferred automatically from the handler body
+(the first locally-declared `var x T`, e.g. `var req CreateUserRequest`), so it
+needs no type name in the annotation.
+
+### 3. Wire it with a single call
+
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/ricksantos88/docwire"
+)
+
+func main() {
+    // Reads ./internal/http (and the DTOs it references) and serves the docs.
+    handler := docwire.Scan("./internal/http").Handler()
+
+    mux := http.NewServeMux()
+    mux.Handle("/docwire/", handler)
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+`go run ./cmd/api` → Swagger UI live at `http://localhost:8080/docwire/`.
+
+> **Runtime requirement.** Scan reads `.go` files, so the source must be present
+> where the program runs (always true under `go run`). For a stripped binary
+> shipped without source (e.g. a `scratch` container), use the declarative
+> `parser` + `adapters` flow below, or the programmatic API. Gate `Scan` behind
+> your "docs enabled" flag so production never pays the parse cost.
+
+---
+
+## Quick Start — Declarative (annotations + registry)
 
 Document routes directly in your handler doc-comments using `@` annotations. The `parser` sub-package reads those comments at startup and wires everything automatically via the generic `adapters.Load` function.
 
@@ -68,6 +128,16 @@ func ListUsers(w http.ResponseWriter, r *http.Request) { ... }
 | `@Auth` | `schemeName` | Security scheme to apply |
 | `@Cache` | `duration` | Suggested cache TTL (informational) |
 | `@For` | `nethttp\|fiber` | Target framework (default: `nethttp`) |
+
+**Global tags** (placed on a package doc-comment, read by `docwire.Scan`):
+
+| Tag | Format | Description |
+|---|---|---|
+| `@Title` | `text` | API title |
+| `@Version` | `text` | API version |
+| `@Description` | `text` | API description |
+| `@Server` | `url "desc"` | Server entry (repeat for multiple environments) |
+| `@Security` | `name type [arg]` | Security scheme. `type` ∈ `bearerJWT`, `basic`, `apiKeyHeader`, `apiKeyQuery`; `arg` is the header/query name for the `apiKey*` types |
 
 ### 2. Build a registry
 
@@ -203,6 +273,23 @@ Creates a new documentation engine.
 | `WithTermsOfService(url)` | Terms of service URL |
 | `WithServer(url, description)` | Add a server entry (call multiple times for multiple environments) |
 | `WithSecurityScheme(name, scheme)` | Register a security scheme in `components/securitySchemes` |
+
+### `Scan(dirs ...string) *Engine`
+
+Builds a fully-populated `*Engine` from source — the zero-config entry point.
+For each directory it reads the package doc-comment for global metadata
+(`@Title`/`@Version`/`@Server`/`@Security`), extracts one route per annotated
+handler, infers each `@Body` DTO from the handler body, and registers the JSON
+schema of every `@Response`/`@Body` type by reading its struct declaration in the
+scanned source (`time.Time` → `date-time`, slices → arrays, nested structs
+recurse, `json:"-"` and unexported fields are skipped, `validate`/`binding`/
+`required` tags drive the `required` list). Unreadable directories are skipped so
+a partial tree never crashes startup. Pass every directory that holds either a
+handler or a referenced DTO.
+
+```go
+handler := docwire.Scan("./internal/http", "./internal/dto").Handler()
+```
 
 ### `engine.AddRoute(path, method, summary, description string, opts ...RouteOption)`
 

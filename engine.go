@@ -143,6 +143,12 @@ func (e *Engine) AddRoute(path, method, summary, description string, opts ...Rou
 		Security:    cfg.security,
 	}
 
+	e.applyOperationLocked(path, method, op)
+}
+
+// applyOperationLocked attaches op to the path item under the right HTTP method.
+// Shared by the programmatic AddRoute and the source-scan builder. Lock must be held.
+func (e *Engine) applyOperationLocked(path, method string, op *Operation) {
 	pathItem := e.spec.Paths[path]
 	switch strings.ToUpper(method) {
 	case http.MethodGet:

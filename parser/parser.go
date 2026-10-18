@@ -150,6 +150,15 @@ var validHTTPMethods = map[string]bool{
 	"DELETE": true, "HEAD": true, "OPTIONS": true,
 }
 
+// ParseComment parses the raw doc-comment text of a single function and reports
+// whether it carries route annotations. It is the per-comment entry point used by
+// source scanners (e.g. docwire.Scan) that already hold the AST; validation
+// warnings are discarded — use ParseDirStrict to inspect them.
+func ParseComment(doc string) (RouteAnnotation, bool) {
+	ann, found, _ := parseDocComment(doc)
+	return ann, found
+}
+
 // parseDocComment parses the raw comment text of a function.
 // Returns (annotation, true, warnings) when at least one @Route tag is present.
 func parseDocComment(doc string) (RouteAnnotation, bool, []ValidationError) {

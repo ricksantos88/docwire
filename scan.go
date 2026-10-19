@@ -4,6 +4,8 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
+	"io/fs"
+	"strings"
 
 	"github.com/ricksantos88/docwire/parser"
 )
@@ -35,7 +37,9 @@ func Scan(dirs ...string) *Engine {
 	var routes []scannedRoute
 
 	for _, dir := range dirs {
-		pkgs, err := goparser.ParseDir(fset, dir, nil, goparser.ParseComments)
+		pkgs, err := goparser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
+			return !strings.HasSuffix(fi.Name(), "_test.go")
+		}, goparser.ParseComments)
 		if err != nil {
 			continue // skip unreadable dirs rather than failing the whole boot
 		}
@@ -82,16 +86,20 @@ func scanFileRoutes(file *ast.File) []scannedRoute {
 		ann.FuncName = fn.Name.Name
 		sr := scannedRoute{annotation: ann}
 		if ann.Body != nil {
-			sr.bodyType = inferBodyType(fn)
+			if ann.Body.TypeName != "" {
+				sr.bodyType = ann.Body.TypeName
+			} else {
+				sr.bodyType = inferBodyType(fn)
+			}
 		}
 		out = append(out, sr)
 	}
 	return out
 }
 
-// inferBodyType returns the type name of the first locally-declared `var x T`
-// inside the handler — the idiomatic decode target (e.g. `var req RegisterRequest`
-// before httputil.DecodeJSON(r, &req)). Empty when no such declaration exists.
+// inferBodyType returns the type name of the first non-primitive locally-declared
+// variable (`var req T` or `req := T{}`) inside the handler — the idiomatic decode
+// target (e.g. `var req RegisterRequest`). Empty when no candidate declaration exists.
 func inferBodyType(fn *ast.FuncDecl) string {
 	if fn.Body == nil {
 		return ""
@@ -101,23 +109,60 @@ func inferBodyType(fn *ast.FuncDecl) string {
 		if name != "" {
 			return false
 		}
-		gd, ok := n.(*ast.GenDecl)
-		if !ok || gd.Tok != token.VAR {
-			return true
-		}
-		for _, spec := range gd.Specs {
-			vs, ok := spec.(*ast.ValueSpec)
-			if !ok || vs.Type == nil {
-				continue
+		switch stmt := n.(type) {
+		case *ast.GenDecl:
+			if stmt.Tok != token.VAR {
+				return true
 			}
-			if id, ok := vs.Type.(*ast.Ident); ok {
-				name = id.Name
-				return false
+			for _, spec := range stmt.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok || vs.Type == nil {
+					continue
+				}
+				if candidate := candidateIdentName(vs.Type); candidate != "" {
+					name = candidate
+					return false
+				}
+			}
+		case *ast.AssignStmt:
+			if stmt.Tok != token.DEFINE {
+				return true
+			}
+			for _, rhs := range stmt.Rhs {
+				if candidate := candidateCompositeTypeName(rhs); candidate != "" {
+					name = candidate
+					return false
+				}
 			}
 		}
 		return true
 	})
 	return name
+}
+
+func candidateIdentName(expr ast.Expr) string {
+	if star, ok := expr.(*ast.StarExpr); ok {
+		expr = star.X
+	}
+	id, ok := expr.(*ast.Ident)
+	if !ok || id.Name == "error" || id.Name == "any" {
+		return ""
+	}
+	if _, isBasic := basicTypeOf(id.Name); isBasic {
+		return ""
+	}
+	return id.Name
+}
+
+func candidateCompositeTypeName(expr ast.Expr) string {
+	if unary, ok := expr.(*ast.UnaryExpr); ok && unary.Op == token.AND {
+		expr = unary.X
+	}
+	cl, ok := expr.(*ast.CompositeLit)
+	if !ok || cl.Type == nil {
+		return ""
+	}
+	return candidateIdentName(cl.Type)
 }
 
 // newEngineFromMeta constructs an Engine from the scanned global metadata,

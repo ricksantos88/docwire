@@ -22,16 +22,36 @@ func (e *Engine) registerStructLocked(t reflect.Type) string {
 	e.spec.Components.Schemas[name] = Schema{Type: "object", Properties: make(map[string]Property)}
 
 	schema := Schema{Type: "object", Properties: make(map[string]Property)}
+	e.populateStructFieldsLocked(&schema, t, make(map[reflect.Type]bool))
+	e.spec.Components.Schemas[name] = schema
+	return ref
+}
+
+func (e *Engine) populateStructFieldsLocked(schema *Schema, t reflect.Type, visited map[reflect.Type]bool) {
+	visited[t] = true
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		if field.PkgPath != "" {
-			continue
-		}
 		jsonTag := field.Tag.Get("json")
 		if jsonTag == "-" {
 			continue
 		}
-		fieldName := strings.Split(jsonTag, ",")[0]
+		explicitName := strings.Split(jsonTag, ",")[0]
+
+		if field.Anonymous && explicitName == "" {
+			ft := field.Type
+			for ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct && ft != reflect.TypeOf(time.Time{}) && !visited[ft] {
+				e.populateStructFieldsLocked(schema, ft, visited)
+				continue
+			}
+		}
+
+		if field.PkgPath != "" {
+			continue
+		}
+		fieldName := explicitName
 		if fieldName == "" {
 			fieldName = field.Name
 		}
@@ -40,8 +60,6 @@ func (e *Engine) registerStructLocked(t reflect.Type) string {
 			schema.Required = append(schema.Required, fieldName)
 		}
 	}
-	e.spec.Components.Schemas[name] = schema
-	return ref
 }
 
 // buildFieldPropertyLocked reads struct field tags and overrides what buildPropertyLocked inferred.

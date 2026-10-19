@@ -37,6 +37,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"strconv"
 	"strings"
 )
@@ -52,7 +53,7 @@ func (e ValidationError) Error() string {
 	return fmt.Sprintf("docwire/parser: func %q → %s: %s", e.FuncName, e.Tag, e.Message)
 }
 
-// Param describes a single HTTP parameter (query or path).
+// Param describes a single HTTP parameter (query, path, or header).
 type Param struct {
 	Name        string
 	Description string
@@ -61,6 +62,7 @@ type Param struct {
 
 // BodyDef describes a request body annotation.
 type BodyDef struct {
+	TypeName    string
 	Description string
 	Required    bool
 }
@@ -81,17 +83,18 @@ type RouteAnnotation struct {
 	// Defaults to "nethttp" when @For is absent.
 	Framework string
 
-	Method      string
-	Path        string
-	Summary     string
-	Description string
-	Tags        []string
-	QueryParams []Param
-	PathParams  []Param
-	Body        *BodyDef
-	Responses   []ResponseDef
-	Auth        []string
-	Cache       string
+	Method       string
+	Path         string
+	Summary      string
+	Description  string
+	Tags         []string
+	QueryParams  []Param
+	PathParams   []Param
+	HeaderParams []Param
+	Body         *BodyDef
+	Responses    []ResponseDef
+	Auth         []string
+	Cache        string
 }
 
 // ParseDir walks every .go file inside dir and returns all annotated functions found.
@@ -101,11 +104,13 @@ func ParseDir(dir string) ([]RouteAnnotation, error) {
 	return routes, err
 }
 
-// ParseDirStrict walks every .go file inside dir and returns annotated functions
+// ParseDirStrict walks every non-test .go file inside dir and returns annotated functions
 // plus any ValidationErrors found in malformed annotations.
 func ParseDirStrict(dir string) ([]RouteAnnotation, []ValidationError, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
+		return !strings.HasSuffix(fi.Name(), "_test.go")
+	}, parser.ParseComments)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parser.ParseDir(%q): %w", dir, err)
 	}
@@ -218,6 +223,13 @@ func parseDocComment(doc string) (RouteAnnotation, bool, []ValidationError) {
 				errs = append(errs, ValidationError{Tag: "@Path", Message: fmt.Sprintf("malformed param %q — expected: name \"description\"", rest)})
 			}
 
+		case "@Header":
+			if p, ok := parseParam(rest); ok {
+				ann.HeaderParams = append(ann.HeaderParams, p)
+			} else {
+				errs = append(errs, ValidationError{Tag: "@Header", Message: fmt.Sprintf("malformed param %q — expected: name \"description\" required|optional", rest)})
+			}
+
 		case "@Body":
 			ann.Body = parseBody(rest)
 
@@ -262,10 +274,18 @@ func parseParam(s string) (Param, bool) {
 	}, true
 }
 
-// parseBody parses:  "description"  required|optional
+// parseBody parses:  [TypeName]  "description"  required|optional
 func parseBody(s string) *BodyDef {
+	s = strings.TrimSpace(s)
+	var typeName string
+	if !strings.HasPrefix(s, `"`) && strings.Contains(s, `"`) {
+		first, rem, _ := strings.Cut(s, " ")
+		typeName = strings.TrimSpace(first)
+		s = strings.TrimSpace(rem)
+	}
 	desc, reqStr := extractQuoted(s)
 	return &BodyDef{
+		TypeName:    typeName,
 		Description: desc,
 		Required:    strings.TrimSpace(reqStr) == "required",
 	}

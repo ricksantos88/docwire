@@ -62,8 +62,6 @@ func Load[H any](
 ) []LoadResult {
 	results := make([]LoadResult, 0, len(routes))
 	for _, r := range routes {
-		engine.AddRoute(r.Path, r.Method, r.Summary, r.Description, buildOpts(r, resolver)...)
-
 		h, ok := registry[r.FuncName]
 		if !ok {
 			results = append(results, LoadResult{
@@ -72,6 +70,7 @@ func Load[H any](
 			})
 			continue
 		}
+		engine.AddRoute(r.Path, r.Method, r.Summary, r.Description, buildOpts(r, resolver)...)
 		register(r.Method, r.Path, h)
 		results = append(results, LoadResult{Route: r})
 	}
@@ -108,10 +107,17 @@ func buildOpts(r parser.RouteAnnotation, resolve BodyResolver) []docwire.RouteOp
 	for _, p := range r.PathParams {
 		opts = append(opts, docwire.WithPathParam(p.Name, p.Description))
 	}
+	for _, h := range r.HeaderParams {
+		opts = append(opts, docwire.WithHeaderParam(h.Name, h.Description, h.Required))
+	}
 	if r.Body != nil {
 		var bodyExample any
 		if resolve != nil {
-			bodyExample = resolve("Body")
+			key := r.Body.TypeName
+			if key == "" {
+				key = "Body"
+			}
+			bodyExample = resolve(key)
 		}
 		opts = append(opts, docwire.WithRequestBody(r.Body.Description, r.Body.Required, bodyExample))
 	}

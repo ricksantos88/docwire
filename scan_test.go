@@ -61,6 +61,27 @@ func TestScanRegistersRoutesAndResolvesTypes(t *testing.T) {
 	if ref := get.Responses["200"].Content["application/json"].Schema.Ref; ref != "#/components/schemas/PaginatedUsers" {
 		t.Errorf("200 ref = %q", ref)
 	}
+	hasHeader := false
+	for _, p := range get.Parameters {
+		if p.In == "header" && p.Name == "X-Request-ID" {
+			hasHeader = true
+		}
+	}
+	if !hasHeader {
+		t.Errorf("expected header param X-Request-ID, got %+v", get.Parameters)
+	}
+
+	exp := e.spec.Paths["/v1/users/export"].Post
+	if exp == nil {
+		t.Fatal("POST /v1/users/export not registered")
+	}
+	if ref := exp.RequestBody.Content["application/json"].Schema.Ref; ref != "#/components/schemas/RegisterRequest" {
+		t.Errorf("explicit @Body TypeName ref = %q", ref)
+	}
+	respSchema := exp.Responses["200"].Content["application/json"].Schema
+	if respSchema.Type != "array" || respSchema.Items == nil || respSchema.Items.Ref != "#/components/schemas/UserResponse" {
+		t.Errorf("slice @Response schema = %+v", respSchema)
+	}
 }
 
 func TestScanBuildsSchemasFromAST(t *testing.T) {
@@ -97,6 +118,13 @@ func TestScanBuildsSchemasFromAST(t *testing.T) {
 	if ex := user.Properties["id"].Example; ex != "u_123" {
 		t.Errorf("id example = %v", ex)
 	}
+	// embedded AuditMeta field must be flattened into UserResponse.
+	if _, exists := user.Properties["tenant_id"]; !exists {
+		t.Errorf("embedded field tenant_id should be flattened into UserResponse: %+v", user.Properties)
+	}
+	if !slices.Contains(user.Required, "tenant_id") {
+		t.Errorf("embedded required field tenant_id missing from Required: %v", user.Required)
+	}
 	// unexported field must be skipped.
 	if _, exists := user.Properties["internal"]; exists {
 		t.Error("unexported field should be skipped")
@@ -105,17 +133,16 @@ func TestScanBuildsSchemasFromAST(t *testing.T) {
 
 func TestScanHandlerServesSpec(t *testing.T) {
 	e := Scan(scanDir)
-	srv := httptest.NewServer(e.Handler())
-	defer srv.Close()
+	req := httptest.NewRequest(http.MethodGet, "/docwire/doc.json", nil)
+	rr := httptest.NewRecorder()
+	e.Handler().ServeHTTP(rr, req)
 
-	resp, err := http.Get(srv.URL + "/docwire/doc.json")
-	if err != nil {
-		t.Fatal(err)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
 	}
-	defer resp.Body.Close()
 
 	var spec map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+	if err := json.NewDecoder(rr.Body).Decode(&spec); err != nil {
 		t.Fatalf("decode spec: %v", err)
 	}
 	if spec["openapi"] != "3.0.3" {

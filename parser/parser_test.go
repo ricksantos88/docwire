@@ -238,6 +238,30 @@ func TestParseBody_NoQuotes(t *testing.T) {
 	}
 }
 
+func TestParseBody_WithExplicitTypeName(t *testing.T) {
+	b := parseBody(`CreateUserRequest "New user payload" required`)
+	if b.TypeName != "CreateUserRequest" {
+		t.Errorf("want TypeName=CreateUserRequest, got %q", b.TypeName)
+	}
+	if b.Description != "New user payload" {
+		t.Errorf("want Description='New user payload', got %q", b.Description)
+	}
+	if !b.Required {
+		t.Error("want Required=true")
+	}
+}
+
+func TestParseDocComment_HeaderParam(t *testing.T) {
+	doc := "@Route GET /x\n@Header X-Tenant-ID \"Tenant header\" required\n@Header\n"
+	ann, _, errs := parseDocComment(doc)
+	if len(ann.HeaderParams) != 1 || ann.HeaderParams[0].Name != "X-Tenant-ID" || !ann.HeaderParams[0].Required {
+		t.Errorf("header param not parsed properly: %+v", ann.HeaderParams)
+	}
+	if len(errs) != 1 || errs[0].Tag != "@Header" {
+		t.Errorf("expected 1 @Header validation error, got %v", errs)
+	}
+}
+
 // ── extractQuoted edge case ──────────────────────────────────────────────────
 
 func TestExtractQuoted_UnclosedQuote(t *testing.T) {

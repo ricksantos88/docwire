@@ -123,8 +123,9 @@ func ListUsers(w http.ResponseWriter, r *http.Request) { ... }
 | `@Tags` | `tag1,tag2` | Grouping tags |
 | `@Query` | `name "desc" required\|optional` | Query-string parameter |
 | `@Path` | `name "desc"` | Path parameter (always required) |
-| `@Body` | `"desc" required\|optional` | Request body |
-| `@Response` | `code TypeName "desc"` | Possible response (repeat for multiple) |
+| `@Header` | `name "desc" required\|optional` | Header parameter |
+| `@Body` | `[TypeName] "desc" required\|optional` | Request body (optional `TypeName`; inferred from handler body in `Scan`) |
+| `@Response` | `code TypeName "desc"` | Possible response (`TypeName` or `[]TypeName`; repeat for multiple) |
 | `@Auth` | `schemeName` | Security scheme to apply |
 | `@Cache` | `duration` | Suggested cache TTL (informational) |
 | `@For` | `nethttp\|fiber` | Target framework (default: `nethttp`) |

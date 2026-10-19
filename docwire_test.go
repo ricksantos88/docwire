@@ -910,3 +910,73 @@ func TestFullSpec_RoundTrip(t *testing.T) {
 		t.Error("/users/{id} path missing")
 	}
 }
+
+type EmbeddedBase struct {
+	TenantID string `json:"tenant_id" required:"true"`
+}
+
+type StructWithEmbedded struct {
+	EmbeddedBase
+	Name string `json:"name"`
+}
+
+func TestRegisterModel_FlattensAnonymousEmbeddedStruct(t *testing.T) {
+	e := NewEngine("Test", "v1")
+	e.RegisterModel(StructWithEmbedded{})
+	schema, ok := e.spec.Components.Schemas["StructWithEmbedded"]
+	if !ok {
+		t.Fatal("StructWithEmbedded not registered")
+	}
+	if _, exists := schema.Properties["tenant_id"]; !exists {
+		t.Errorf("expected embedded field tenant_id to be flattened, got %+v", schema.Properties)
+	}
+	if len(schema.Required) != 1 || schema.Required[0] != "tenant_id" {
+		t.Errorf("expected tenant_id in required list, got %v", schema.Required)
+	}
+}
+
+func TestDefaultSwaggerUIHTML_EscapesXSSPayload(t *testing.T) {
+	html := DefaultSwaggerUIHTML(`"</script><script>alert(1)</script>`)
+	if strings.Contains(html, `"</script><script>alert(1)</script>`) {
+		t.Fatal("raw XSS payload should be JSON-escaped in DefaultSwaggerUIHTML")
+	}
+	if !strings.Contains(html, `\u003c/script\u003e`) {
+		t.Errorf("expected JSON-escaped script close tag in output")
+	}
+}
+
+func TestHandler_SecurityHeadersAndMethodRestriction(t *testing.T) {
+	e := NewEngine("Test", "v1")
+	h := e.Handler()
+
+	// POST to /docwire/doc.json must return 405
+	reqPost := httptest.NewRequest(http.MethodPost, "/docwire/doc.json", nil)
+	rrPost := httptest.NewRecorder()
+	h.ServeHTTP(rrPost, reqPost)
+	if rrPost.Code != http.StatusMethodNotAllowed {
+		t.Errorf("POST /docwire/doc.json: want 405, got %d", rrPost.Code)
+	}
+
+	// DELETE to /docwire/ must return 405
+	reqDel := httptest.NewRequest(http.MethodDelete, "/docwire/", nil)
+	rrDel := httptest.NewRecorder()
+	h.ServeHTTP(rrDel, reqDel)
+	if rrDel.Code != http.StatusMethodNotAllowed {
+		t.Errorf("DELETE /docwire/: want 405, got %d", rrDel.Code)
+	}
+
+	// GET /docwire/ must set security headers
+	reqGet := httptest.NewRequest(http.MethodGet, "/docwire/", nil)
+	rrGet := httptest.NewRecorder()
+	h.ServeHTTP(rrGet, reqGet)
+	if rrGet.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Error("missing X-Content-Type-Options: nosniff")
+	}
+	if rrGet.Header().Get("X-Frame-Options") != "DENY" {
+		t.Error("missing X-Frame-Options: DENY")
+	}
+	if rrGet.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Error("missing Referrer-Policy: no-referrer")
+	}
+}
+

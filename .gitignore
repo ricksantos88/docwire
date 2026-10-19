@@ -1,0 +1,15 @@
+# OS & Editor files
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+
+# Go build & test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*

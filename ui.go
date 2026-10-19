@@ -1,18 +1,20 @@
 package docwire
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
 // DefaultSwaggerUIHTML retorna o HTML da UI apontando pro spec em specPath.
 func DefaultSwaggerUIHTML(specPath string) string {
+	safeURL, _ := json.Marshal(specPath)
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>docwire — API Docs</title>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         /* ── reset & base ── */
         *, *:before, *:after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -215,12 +217,12 @@ func DefaultSwaggerUIHTML(specPath string) string {
 
     <div id="swagger-ui"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
     window.onload = function() {
         window.ui = SwaggerUIBundle({
-            url: "%s",
+            url: %s,
             dom_id: '#swagger-ui',
             deepLinking: true,
             presets: [
@@ -235,5 +237,5 @@ func DefaultSwaggerUIHTML(specPath string) string {
     };
     </script>
 </body>
-</html>`, specPath)
+</html>`, string(safeURL))
 }

@@ -51,6 +51,8 @@ func responseResolver(typeName string) any {
 		return handlers.CustomerResponse{}
 	case "[]CustomerResponse":
 		return []handlers.CustomerResponse{}
+	case "CreateCustomerRequest", "Body":
+		return handlers.CreateCustomerRequest{}
 	case "ErrorResponse":
 		return handlers.ErrorResponse{}
 	}

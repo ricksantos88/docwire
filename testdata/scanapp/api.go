@@ -11,6 +11,11 @@ package scanapp
 
 import "net/http"
 
+// AuditMeta is an embedded struct whose fields should be flattened into UserResponse.
+type AuditMeta struct {
+	TenantID string `json:"tenant_id" required:"true"`
+}
+
 // RegisterRequest is the request DTO inferred from Register's body.
 type RegisterRequest struct {
 	Name     string `json:"name" validate:"required"`
@@ -21,6 +26,7 @@ type RegisterRequest struct {
 
 // UserResponse is the 201 response payload.
 type UserResponse struct {
+	AuditMeta
 	ID       string   `json:"id" example:"u_123"`
 	Name     string   `json:"name"`
 	Roles    []string `json:"roles"`
@@ -48,8 +54,10 @@ type PaginatedUsers struct {
 // @Response 201 UserResponse  "Created"
 // @Response 422 ErrorResponse "Validation"
 func Register(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var count int
 	var req RegisterRequest
-	_ = req
+	_, _, _ = err, count, req
 }
 
 // List returns users.
@@ -58,7 +66,16 @@ func Register(w http.ResponseWriter, r *http.Request) {
 // @Summary  List users
 // @Tags     users
 // @Query    limit "Page size" optional
+// @Header   X-Request-ID "Trace ID" optional
 // @Response 200 PaginatedUsers "Page"
 // @Response 401 ErrorResponse  "Unauthorized"
 // @Auth     bearer
 func List(w http.ResponseWriter, r *http.Request) {}
+
+// ExportUsers returns a raw slice of users.
+//
+// @Route    POST /v1/users/export
+// @Summary  Export users
+// @Body     RegisterRequest "Filter criteria" optional
+// @Response 200 []UserResponse "All matching users"
+func ExportUsers(w http.ResponseWriter, r *http.Request) {}

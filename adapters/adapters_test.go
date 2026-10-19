@@ -250,3 +250,28 @@ func TestLoad_RegisterCallbackInvoked(t *testing.T) {
 		t.Errorf("register callback wrong: %v", registered)
 	}
 }
+
+func TestLoad_WithHeaderAndTypedBody(t *testing.T) {
+	registry := map[string]http.HandlerFunc{
+		"CreateUser": func(w http.ResponseWriter, r *http.Request) {},
+	}
+	route := parser.RouteAnnotation{
+		FuncName: "CreateUser",
+		Method:   "POST",
+		Path:     "/users",
+		HeaderParams: []parser.Param{
+			{Name: "X-Idempotency-Key", Description: "Idempotency key", Required: true},
+		},
+		Body: &parser.BodyDef{
+			TypeName:    "UserResponse",
+			Description: "User payload",
+			Required:    true,
+		},
+	}
+
+	results := adapters.Load(newEngine(), []parser.RouteAnnotation{route}, registry, testResolver, noopRegister)
+	if len(results) != 1 || results[0].Err != nil {
+		t.Fatalf("unexpected error: %v", results[0].Err)
+	}
+}
+

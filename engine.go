@@ -199,21 +199,36 @@ func (e *Engine) RegisterModel(model any) string {
 //	GET /docwire/doc.json → OpenAPI 3.0 spec
 func (e *Engine) Handler() http.Handler {
 	mux := http.NewServeMux()
+	uiHTML := []byte(DefaultSwaggerUIHTML("/docwire/doc.json"))
 
 	mux.HandleFunc("/docwire/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
 		e.mu.RLock()
 		defer e.mu.RUnlock()
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(e.spec)
 	})
 
 	mux.HandleFunc("/docwire/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
 		if strings.TrimSuffix(r.URL.Path, "/") != "/docwire" {
 			http.NotFound(w, r)
 			return
 		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(DefaultSwaggerUIHTML("/docwire/doc.json")))
+		_, _ = w.Write(uiHTML)
 	})
 
 	return mux

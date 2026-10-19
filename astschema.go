@@ -73,6 +73,12 @@ func (e *Engine) addRouteFromAST(r parser.RouteAnnotation, bodyType string, ix *
 			Required: true, Schema: Property{Type: "string"},
 		})
 	}
+	for _, h := range r.HeaderParams {
+		params = append(params, Parameter{
+			Name: h.Name, In: "header", Description: h.Description,
+			Required: h.Required, Schema: Property{Type: "string"},
+		})
+	}
 
 	var reqBody *RequestBody
 	if r.Body != nil {
@@ -103,12 +109,23 @@ func (e *Engine) addRouteFromAST(r parser.RouteAnnotation, bodyType string, ix *
 	})
 }
 
-// astModelPropLocked resolves a type name to a $ref Property, registering the
-// struct schema on demand. Returns ok=false for empty or unresolvable names so
-// the caller can emit a body-less response/request.
+// astModelPropLocked resolves a type name to a Property ($ref, array, or scalar),
+// registering struct schemas on demand. Returns ok=false for empty, "-", or
+// unresolvable names so the caller can emit a body-less response/request.
 func (e *Engine) astModelPropLocked(typeName string, ix *typeIndex) (Property, bool) {
-	if typeName == "" {
+	typeName = strings.TrimSpace(typeName)
+	if typeName == "" || typeName == "-" {
 		return Property{}, false
+	}
+	if elemType, ok := strings.CutPrefix(typeName, "[]"); ok {
+		elemProp, ok := e.astModelPropLocked(elemType, ix)
+		if !ok {
+			return Property{}, false
+		}
+		return Property{Type: "array", Items: &elemProp}, true
+	}
+	if bt, ok := basicTypeOf(typeName); ok {
+		return Property{Type: bt, Format: basicFormatOf(typeName)}, true
 	}
 	ref := e.registerStructFromASTLocked(typeName, ix)
 	if ref == "" {
@@ -133,20 +150,49 @@ func (e *Engine) registerStructFromASTLocked(name string, ix *typeIndex) string 
 	e.spec.Components.Schemas[name] = Schema{Type: "object", Properties: make(map[string]Property)}
 
 	schema := Schema{Type: "object", Properties: make(map[string]Property)}
+	e.populateASTStructFieldsLocked(&schema, st, ix, make(map[string]bool))
+	e.spec.Components.Schemas[name] = schema
+	return ref
+}
+
+func (e *Engine) populateASTStructFieldsLocked(schema *Schema, st *ast.StructType, ix *typeIndex, visited map[string]bool) {
 	for _, field := range st.Fields.List {
-		if len(field.Names) == 0 {
-			continue // embedded field — skip (matches reflection's exported-only focus)
-		}
 		tag := astFieldTag(field)
 		jsonTag := tag.Get("json")
 		if jsonTag == "-" {
 			continue
 		}
+		explicitName := strings.Split(jsonTag, ",")[0]
+
+		if len(field.Names) == 0 {
+			// Anonymous embedded field: flatten when no explicit json name is given.
+			if explicitName != "" {
+				prop := e.astPropertyLocked(field.Type, ix)
+				applyTagOverrides(&prop, tag)
+				schema.Properties[explicitName] = prop
+				if astRequiredField(tag) {
+					schema.Required = append(schema.Required, explicitName)
+				}
+				continue
+			}
+			embType := field.Type
+			if star, ok := embType.(*ast.StarExpr); ok {
+				embType = star.X
+			}
+			if id, ok := embType.(*ast.Ident); ok && !visited[id.Name] {
+				if embSt, exists := ix.structs[id.Name]; exists {
+					visited[id.Name] = true
+					e.populateASTStructFieldsLocked(schema, embSt, ix, visited)
+				}
+			}
+			continue
+		}
+
 		for _, ident := range field.Names {
 			if !ident.IsExported() {
 				continue
 			}
-			fieldName := strings.Split(jsonTag, ",")[0]
+			fieldName := explicitName
 			if fieldName == "" {
 				fieldName = ident.Name
 			}
@@ -158,8 +204,6 @@ func (e *Engine) registerStructFromASTLocked(name string, ix *typeIndex) string 
 			}
 		}
 	}
-	e.spec.Components.Schemas[name] = schema
-	return ref
 }
 
 // astPropertyLocked maps a source type expression to its OpenAPI Property,
@@ -202,6 +246,9 @@ func (e *Engine) astPropertyLocked(expr ast.Expr, ix *typeIndex) Property {
 func astFieldTag(field *ast.Field) reflect.StructTag {
 	if field.Tag == nil {
 		return ""
+	}
+	if unquoted, err := strconv.Unquote(field.Tag.Value); err == nil {
+		return reflect.StructTag(unquoted)
 	}
 	return reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
 }
